@@ -372,7 +372,7 @@ public class CommitLog implements Swappable {
 
     /**
      * check the message and returns the message size
-     *
+     * 从commitlog中解析出消息以及对应的消息信息,包括: topic, queue, size等
      * @return 0 Come the end of the file // >0 Normal messages // -1 Message checksum failure
      */
     public DispatchRequest checkMessageAndReturnSize(java.nio.ByteBuffer byteBuffer, final boolean checkCRC,

@@ -2692,6 +2692,9 @@ public class DefaultMessageStore implements MessageStore {
 
     }
 
+    /**
+     * 独立线程，每1ms循环执行， 用于将CommitLog中消息转化存储到ConsumeQueue文件
+     */
     class ReputMessageService extends ServiceThread {
 
         protected volatile long reputFromOffset = 0;
@@ -2734,13 +2737,16 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         public void doReput() {
+            //1. 判断已经转化的offset是否比commitlog中的最小值还小
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 LOGGER.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
                     this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
                 this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
             }
+            //循环从commitlog中获取为转化的消息
             for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
 
+                //获取当前还未转化的消息信息， 返回空，则代表commitlog中无新消息
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
 
                 if (result == null) {
@@ -2749,8 +2755,9 @@ public class DefaultMessageStore implements MessageStore {
 
                 try {
                     this.reputFromOffset = result.getStartOffset();
-
+                    // 对当前还未转化的commitlog中的消息，逐一消息进行转化保存到consumeQueue文件中
                     for (int readSize = 0; readSize < result.getSize() && reputFromOffset < DefaultMessageStore.this.getConfirmOffset() && doNext; ) {
+                        //获取一条消息信息包括: topic, queue, msgSize等信息  
                         DispatchRequest dispatchRequest =
                             DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false, false);
                         int size = dispatchRequest.getBufferSize() == -1 ? dispatchRequest.getMsgSize() : dispatchRequest.getBufferSize();

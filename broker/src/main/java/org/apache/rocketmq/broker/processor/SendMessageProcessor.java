@@ -242,6 +242,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         final byte[] body = request.getBody();
 
+        // 获取分配QueueId
         int queueIdInt = requestHeader.getQueueId();
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
 
@@ -253,6 +254,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setTopic(requestHeader.getTopic());
         msgInner.setQueueId(queueIdInt);
 
+        // 若对应消息发送失败,消费失败的次数较多,则进入死信队列中
         Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
         if (!handleRetryAndDLQ(requestHeader, response, request, msgInner, topicConfig, oriProps)) {
             return response;
@@ -288,6 +290,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
 
+        //若为事务消息, 则处理为半事务消息,
         // Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         boolean sendTransactionPrepareMessage = false;
