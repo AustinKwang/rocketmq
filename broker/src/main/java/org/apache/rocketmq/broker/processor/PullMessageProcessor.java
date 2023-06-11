@@ -484,6 +484,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         }
 
         final MessageStore messageStore = brokerController.getMessageStore();
+        // 是否使用服务端(broker)存储并重置offset; 集群模式使用, 广播模式不使用
         final boolean useResetOffsetFeature = brokerController.getBrokerConfig().isUseServerSideResetOffset();
         String topic = requestHeader.getTopic();
         String group = requestHeader.getConsumerGroup();
@@ -491,6 +492,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         Long resetOffset = brokerController.getConsumerOffsetManager().queryThenEraseResetOffset(topic, group, queueId);
 
         GetMessageResult getMessageResult = null;
+        //集群模式
         if (useResetOffsetFeature && null != resetOffset) {
             getMessageResult = new GetMessageResult();
             getMessageResult.setStatus(GetMessageStatus.OFFSET_RESET);
@@ -499,6 +501,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             getMessageResult.setMaxOffset(messageStore.getMaxOffsetInQueue(topic, queueId));
             getMessageResult.setSuggestPullingFromSlave(false);
         } else {
+            // 广播模式
             long broadcastInitOffset = queryBroadcastPullInitOffset(topic, group, queueId, requestHeader, channel);
             if (broadcastInitOffset >= 0) {
                 getMessageResult = new GetMessageResult();
@@ -535,6 +538,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         if (getMessageResult != null) {
 
+            // 处理拉取到的消息, 若无,在将该请求对象存储在,在有消息时候唤醒返回
             return this.pullMessageResultHandler.handle(
                 getMessageResult,
                 request,
